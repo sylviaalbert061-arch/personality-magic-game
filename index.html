@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>性格碎片小游戏</title>
+<style>
+body {margin:0;font-family:sans-serif;background:#fdf6f0;}
+button{border:none;border-radius:6px;padding:8px;font-size:14px;cursor:pointer;}
+.hidden{display:none;}
+.screen,#home{width:100%;height:100vh;position:relative;overflow-y:auto;background:#fdf6f0;}
+
+/* 主角大图全屏 */
+#homeImg img,#drawImg img,#taskImg img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0;}
+
+/* 主页菜单 */
+#menu{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;z-index:10;}
+.menuBtn{width:60px;height:60px;margin:5px 0;background:#fff;border:1px solid #333;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;}
+
+/* 通用返回按钮 */
+.backBtn{position:absolute;left:10px;top:10px;width:40px;height:40px;background:#fff;border:1px solid #333;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;z-index:20;}
+
+/* 抽卡界面 */
+#drawTitle{position:absolute;left:10px;top:60px;writing-mode: vertical-rl;font-size:18px;font-weight:bold;z-index:10;}
+#drawResource{position:absolute;top:10px;right:10px;font-size:16px;z-index:10;}
+#drawBtn{position:absolute;bottom:50px;left:50%;transform:translateX(-50%);width:120px;height:120px;z-index:10;}
+
+/* 卡包界面 */
+#collectionTitle{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:18px;font-weight:bold;z-index:10;}
+#collectionResource{position:absolute;top:10px;right:10px;font-size:16px;z-index:10;}
+#cards,#catalogCards{display:grid;grid-template-columns:repeat(2,1fr);justify-items:center;margin-top:60px;gap:10px;}
+
+/* 卡牌样式 */
+.card{width:140px;height:200px;border:2px solid #333;border-radius:10px;background:#fff;box-sizing:border-box;position:relative;overflow:hidden;text-align:center;font-weight:bold;}
+.card img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0;border-radius:6px;}
+.cardContent{position:absolute;bottom:5px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1;background:transparent;padding:0;color:#fff;text-shadow:1px 1px 2px #000;}
+.cardContent .nameRarity{font-size:14px;margin-bottom:2px;}
+.cardContent .level{font-size:12px;margin-bottom:4px;}
+.cardContent button{width:60px;height:24px;font-size:12px;}
+.locked .cardContent{opacity:0.6;}
+.locked img{filter:grayscale(100%);} /* 未解锁变灰 */
+
+/* 全图鉴标题 */
+#catalogTitle{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:18px;font-weight:bold;z-index:10;}
+
+/* 任务界面 */
+#taskTitle{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:18px;font-weight:bold;z-index:10;color: white;}
+#taskResource{position:absolute;top:10px;right:10px;font-size:16px;line-height:1.5em;text-align:right;z-index:10;color: white;}
+#taskBtn{position:absolute;bottom:50px;left:50%;transform:translateX(-50%);width:140px;height:50px;z-index:10;}
+</style>
+</head>
+<body>
+
+<!-- 主页 -->
+<div id="home">
+  <div id="homeImg"><img src="images/home_main.png"></div>
+  <div id="menu">
+    <div class="menuBtn" onclick="showScreen('draw')">抽卡</div>
+    <div class="menuBtn" onclick="showScreen('collection')">卡包</div>
+    <div class="menuBtn" onclick="showScreen('catalog')">全图鉴</div>
+    <div class="menuBtn" onclick="showScreen('task')">任务</div>
+  </div>
+</div>
+
+<!-- 抽卡界面 -->
+<div id="draw" class="screen hidden">
+  <div class="backBtn" onclick="showScreen('home')">🏠</div>
+  <div id="drawTitle">抽卡界面</div>
+  <div id="drawResource">抽卡机会: 0</div>
+  <div id="drawImg"><img src="images/draw_main.png"></div>
+  <div id="drawBtn"><button style="width:100%;height:100%;" onclick="drawCard()">抽卡</button></div>
+</div>
+
+<!-- 卡包界面 -->
+<div id="collection" class="screen hidden">
+  <div class="backBtn" onclick="showScreen('home')">🏠</div>
+  <div id="collectionTitle">卡包界面</div>
+  <div id="collectionResource">升级点: 0</div>
+  <div id="cards"></div>
+</div>
+
+<!-- 全图鉴界面 -->
+<div id="catalog" class="screen hidden">
+  <div class="backBtn" onclick="showScreen('home')">🏠</div>
+  <div id="catalogTitle">全图鉴</div>
+  <div id="catalogCards"></div>
+</div>
+
+<!-- 任务界面 -->
+<div id="task" class="screen hidden">
+  <div id="taskImg"><img src="images/task_main.png"></div>
+  <div class="backBtn" onclick="showScreen('home')">🏠</div>
+  <div id="taskTitle">任务界面</div>
+  <div id="taskResource">抽卡机会:0<br>升级点:0</div>
+  <div id="taskBtn"><button style="width:100%;height:100%;" onclick="completeTask()">完成任务</button></div>
+</div>
+
+<script>
+const personalities = [
+  {name:'温柔', rarity:['★3','★4','★5'], img:{'★3':'images/wenrou_3.png','★4':'images/wenrou_4.png','★5':'images/wenrou_5.png'}},
+  {name:'张扬', rarity:['★3','★4','★5'], img:{'★3':'images/zhangyang_3.png','★4':'images/zhangyang_4.png','★5':'images/zhangyang_5.png'}},
+  {name:'理智', rarity:['★3','★4','★5'], img:{'★3':'images/lizhi_3.png','★4':'images/lizhi_4.png','★5':'images/lizhi_5.png'}}
+];
+
+let ownedCards=[], taskCount=0, drawCount=0, upgradeCount=0;
+
+// 界面切换
+function showScreen(screen){
+  ['home','draw','collection','catalog','task'].forEach(s=>document.getElementById(s).classList.add('hidden'));
+  document.getElementById(screen).classList.remove('hidden');
+  updateAllResources();
+  if(screen==='collection') displayCollection();
+  if(screen==='catalog') displayCatalog();
+  if(screen==='draw') updateResourceDraw();
+}
+
+// 更新资源
+function updateAllResources(){
+  document.getElementById('drawResource').innerText=`抽卡机会: ${drawCount}`;
+  document.getElementById('collectionResource').innerText=`升级点: ${upgradeCount}`;
+  document.getElementById('taskResource').innerHTML=`抽卡机会:${drawCount}<br>升级点:${upgradeCount}`;
+}
+
+// 抽卡
+function getRandomRarity(){const r=Math.random();if(r<0.6)return '★3';if(r<0.9)return '★4';return '★5';}
+function drawCard(){
+  if(drawCount<=0){alert('没有抽卡机会，请先完成任务！');return;}
+  drawCount--;
+  const p=personalities[Math.floor(Math.random()*personalities.length)];
+  const rarity=getRandomRarity();
+  const card={name:p.name,rarity:rarity,level:1,img:p.img[rarity]};
+  ownedCards.push(card);
+  alert(`抽卡获得新卡：${card.name} ${card.rarity}`);
+  updateAllResources();
+  displayCollection();
+}
+
+// 卡包显示
+function displayCollection(){
+  const div=document.getElementById('cards'); div.innerHTML='';
+  for(let i=0;i<ownedCards.length;i++){
+    const c=ownedCards[i];
+    const cdiv=document.createElement('div'); cdiv.className='card';
+    cdiv.innerHTML=`<img src="${c.img}"><div class="cardContent">
+      <div class="nameRarity"><strong>${c.name}</strong> ${c.rarity}</div>
+      <div class="level">等级:${c.level}</div>
+      <button onclick="upgradeCard(${i})">升级</button>
+    </div>`;
+    div.appendChild(cdiv);
+  }
+  if(ownedCards.length%2===1){
+    const emptyDiv=document.createElement('div'); emptyDiv.className='card'; emptyDiv.style.visibility='hidden';
+    div.appendChild(emptyDiv);
+  }
+}
+
+// 升级卡牌
+function upgradeCard(index){
+  if(upgradeCount<=0){alert('没有升级点');return;}
+  upgradeCount--; ownedCards[index].level++;
+  updateAllResources();
+  displayCollection();
+}
+
+// 完成任务
+function completeTask(){taskCount++;drawCount++;upgradeCount++;alert('完成任务获得奖励');updateAllResources();displayCollection();}
+
+// 全图鉴显示
+function displayCatalog(){
+  const div=document.getElementById('catalogCards'); 
+  div.innerHTML='';
+  personalities.forEach(p=>{
+    p.rarity.forEach(r=>{
+      const found = ownedCards.find(c=>c.name===p.name && c.rarity===r);
+      const cdiv=document.createElement('div'); 
+      cdiv.className='card';
+      if(!found) cdiv.classList.add('locked');
+      cdiv.innerHTML = `
+        <img src="${p.img[r]}">
+        <div class="cardContent">
+          ${found ? '' : '<div style="font-size:20px;">🔒</div>'}
+          <div class="nameRarity"><strong>${p.name}</strong> ${r}</div>
+        </div>`;
+      div.appendChild(cdiv);
+    });
+  });
+  if(div.children.length%2===1){
+    const emptyDiv=document.createElement('div'); 
+    emptyDiv.className='card'; 
+    emptyDiv.style.visibility='hidden';
+    div.appendChild(emptyDiv);
+  }
+}
+
+// 抽卡界面更新资源
+function updateResourceDraw(){document.getElementById('drawResource').innerText=`抽卡机会: ${drawCount}`;}
+</script>
+</body>
+</html>
